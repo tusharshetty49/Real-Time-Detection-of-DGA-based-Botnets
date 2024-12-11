@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DGA Sniffer</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            height: 100vh;
+            margin: 0;
+        }
+        #sidebar {
+            width: 50%;
+            background-color: #333;
+            color: white;
+            padding: 20px;
+            height: 100vh;
+            overflow-y: auto;
+            scroll-behavior: smooth;
+        }
+        #logs {
+            max-height: 90vh;
+            overflow-y: auto;
+            margin-top: 20px;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 14px;
+            background-color: black;
+            color: white;
+        }
+        #main-content {
+            width: 50%;
+            padding: 20px;
+            background-color: #f4f4f4;
+            overflow-y: auto;
+        }
+        .log-entry {
+            margin-bottom: 10px;
+            padding: 5px;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+        .dga {
+            color: red;
+        }
+        .legit {
+            color: limegreen;
+        }
+        #dga-domains {
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 14px;
+            background-color: #fff;
+            padding: 15px;
+            border: 2px solid red;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+
+<!-- Left Sidebar for All Logs -->
+<div id="sidebar">
+    <h2>DGA Sniffer Logs (All)</h2>
+    <div id="logs"></div>
+</div>
+
+<!-- Main Content for DGA Domains -->
+<div id="main-content">
+    <h1>DGA-Generated Domains</h1>
+    <div id="dga-domains"></div>
+</div>
+
+<script>
+    let autoScrollEnabled = true;
+    const displayedLogs = new Set();
+
+    // Detect manual scrolling
+    const logsDiv = document.getElementById('logs');
+    logsDiv.addEventListener('scroll', () => {
+        const atBottom = logsDiv.scrollHeight - logsDiv.scrollTop <= logsDiv.clientHeight + 5;
+        autoScrollEnabled = atBottom;
+    });
+
+    // Function to fetch logs from the backend
+    async function fetchLogs() {
+        try {
+            const response = await fetch('http://127.0.0.1:5000/get_logs');
+            const data = await response.json();
+            const dgaDomainsDiv = document.getElementById('dga-domains');
+
+            let dgaDomainsFound = false;
+
+            // Display the logs with color-coding
+            data.logs.forEach(log => {
+                if (!displayedLogs.has(log)) {
+                    const logEntry = document.createElement('div');
+                    logEntry.classList.add('log-entry');
+                    logEntry.textContent = log;
+
+                    // Apply colors based on prediction
+                    if (log.includes("Prediction: DGA")) {
+                        logEntry.classList.add('dga');
+
+                        // Add DGA domain to the right-side content
+                        const dgaEntry = document.createElement('div');
+                        dgaEntry.textContent = log;
+                        dgaDomainsDiv.appendChild(dgaEntry);
+                        dgaDomainsFound = true;
+                    } else if (log.includes("Prediction: Legit")) {
+                        logEntry.classList.add('legit');
+                    }
+
+                    logsDiv.appendChild(logEntry);
+                    displayedLogs.add(log);
+                }
+            });
+
+            // Handle if no DGA domains are found
+            if (!dgaDomainsFound && dgaDomainsDiv.innerHTML ==='') {
+                dgaDomainsDiv.innerHTML = "No DGA domains detected yet...";
+            }
+
+            // Auto-scroll only if enabled
+            if (autoScrollEnabled) {
+                logsDiv.scrollTop = logsDiv.scrollHeight;
+            }
+        } catch (error) {
+            console.error('Error fetching logs:', error);
+        }
+    }
+
+    // Fetch logs every 2 seconds
+    setInterval(fetchLogs, 2000);
+
+    // Initial fetch
+    fetchLogs();
+</script>
+
+</body>
+</html>
